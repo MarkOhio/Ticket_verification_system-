@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Ticket Generator Demo</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#172033}
+button,input,select{font:inherit}
+.app{max-width:1100px;margin:auto;padding:28px 18px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.logo{font-size:20px;font-weight:800}
+.status{font-size:13px;padding:8px 12px;border-radius:999px;background:#e9f8ef;color:#18733b}
+.card{background:#fff;border:1px solid #e3e8f0;border-radius:18px;box-shadow:0 8px 30px #1720330b}
+.form-card{padding:28px;max-width:760px;margin:auto}
+h1{margin:0 0 8px;font-size:30px}
+.sub{color:#687386;margin:0 0 25px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label{font-size:13px;font-weight:700;display:block;margin-bottom:7px}
+input,select{width:100%;padding:13px 14px;border:1px solid #d8dee8;border-radius:10px;outline:none}
+input:focus,select:focus{border-color:#2878ff}
+.full{grid-column:1/-1}
+button{border:0;border-radius:10px;padding:13px 18px;font-weight:800;cursor:pointer}
+.primary{background:#172033;color:#fff;width:100%;margin-top:20px}
+.secondary{background:#eef2f7;color:#172033}
+.ticket-wrap{display:none;margin:28px auto 0;max-width:430px}
+.ticket{background:#fff;border:1px solid #dce2eb;border-radius:22px;overflow:hidden;box-shadow:0 15px 40px #17203314}
+.ticket-top{background:#172033;color:#fff;padding:24px}
+.ticket-top small{opacity:.65}
+.ticket-top h2{margin:8px 0 0;font-size:23px}
+.ticket-body{padding:24px}
+.qr{width:210px;height:210px;margin:5px auto 22px;border:10px solid #fff;box-shadow:0 0 0 1px #dfe4eb;background-color:#fff;display:grid;grid-template-columns:repeat(15,1fr);gap:2px;padding:6px}
+.qr span{background:#111}
+.qr span:nth-child(3n){background:#fff}
+.qr .finder{position:absolute}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;border-top:1px dashed #cfd6e0;padding-top:18px}
+.meta div{font-size:12px;color:#758094}
+.meta strong{display:block;color:#172033;font-size:14px;margin-top:4px}
+.code{text-align:center;font-weight:900;letter-spacing:2px;margin-top:18px}
+.actions{display:flex;gap:10px;margin-top:16px}
+.actions button{flex:1}
+.toast{position:fixed;right:18px;bottom:18px;background:#172033;color:white;padding:13px 16px;border-radius:10px;display:none}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}header{align-items:flex-start;gap:12px}.ticket-body{padding:18px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">EventPass Demo</div>
+  <div class="status">● Online</div>
+</header>
+
+<section class="card form-card">
+  <h1>Get Your Event Ticket</h1>
+  <p class="sub">Demo ticket generator — no real payment is processed.</p>
+  <div class="grid">
+    <div class="full">
+      <label>Event</label>
+      <select id="event">
+        <option>Joel Bellion Concert</option>
+        <option>Wedding Ceremony</option>
+        <option>Naming Ceremony</option>
+        <option>Tech Conference 2026</option>
+        <option>Campus Awards Night</option>
+      </select>
+    </div>
+    <div>
+      <label>Your name</label>
+      <input id="name" placeholder="John Doe">
+    </div>
+    <div>
+      <label>Email address</label>
+      <input id="email" type="email" placeholder="john@example.com">
+    </div>
+    <div>
+      <label>Number of tickets</label>
+      <input id="quantity" type="number" min="1" max="1" value="1" disabled>
+    </div>
+    <div>
+      <label>Ticket price</label>
+      <input value="₦10,000" disabled>
+    </div>
+  </div>
+  <button class="primary" onclick="generateTicket()">Generate Demo Ticket</button>
+</section>
+
+<section class="ticket-wrap" id="ticketWrap">
+  <div class="ticket">
+    <div class="ticket-top">
+      <small>EVENT TICKET</small>
+      <h2 id="ticketEvent"></h2>
+    </div>
+    <div class="ticket-body">
+      <div class="qr" id="qr"></div>
+      <div class="meta">
+        <div>Attendee<strong id="ticketName"></strong></div>
+        <div>Email<strong id="ticketEmail"></strong></div>
+        <div>Date<strong>12 October 2026</strong></div>
+        <div>Time<strong>6:00 PM</strong></div>
+        <div>Venue<strong>Event Arena</strong></div>
+        <div>Ticket<strong id="ticketId"></strong></div>
+      </div>
+      <div class="code" id="ticketCode"></div>
+      <div class="actions">
+        <button class="secondary" onclick="window.print()">Save / Screenshot</button>
+        <button class="secondary" onclick="generateTicket()">Generate Again</button>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const events={
+  "Joel Bellion Concert":"CON",
+  "Wedding Ceremony":"WED",
+  "Naming Ceremony":"NAM",
+  "Tech Conference 2026":"TEC",
+  "Campus Awards Night":"AWD"
+};
+
+function showToast(message){
+  const t=document.getElementById("toast");
+  t.textContent=message;t.style.display="block";
+  setTimeout(()=>t.style.display="none",2500);
+}
+
+function makeQR(seed){
+  const qr=document.getElementById("qr");
+  qr.innerHTML="";
+  let value=0;
+  for(let i=0;i<seed.length;i++) value=(value+seed.charCodeAt(i)*(i+17))%999999;
+  for(let i=0;i<225;i++){
+    const s=document.createElement("span");
+    let n=(value*(i+3)+i*i*31+seed.charCodeAt(i%seed.length))%17;
+    if(n<8)s.style.background="#111";
+    else s.style.background="#fff";
+    qr.appendChild(s);
+  }
+  // visual finder patterns
+  [0,7,14].forEach(start=>{
+    for(let r=0;r<7;r++)for(let c=0;c<7;c++){
+      const idx=(start===0?r*15+c:start===7?r*15+(8+c):105+r*15+c);
+      if(idx<225){
+        const cell=qr.children[idx];
+        cell.style.background=(r===0||r===6||c===0||c===6||(r>=2&&r<=4&&c>=2&&c<=4))?"#111":"#fff";
+      }
+    }
+  });
+}
+
+function generateTicket(){
+  const name=document.getElementById("name").value.trim()||"John Doe";
+  const email=document.getElementById("email").value.trim()||"john@example.com";
+  const event=document.getElementById("event").value;
+  const prefix=events[event];
+  const digits=String(Math.floor(10000000+Math.random()*90000000));
+  const code=prefix+"-"+digits;
+  const id="T-"+digits.slice(0,5);
+
+  document.getElementById("ticketEvent").textContent=event;
+  document.getElementById("ticketName").textContent=name;
+  document.getElementById("ticketEmail").textContent=email;
+  document.getElementById("ticketId").textContent=id;
+  document.getElementById("ticketCode").textContent=code;
+  makeQR(code+name+email);
+  document.getElementById("ticketWrap").style.display="block";
+  document.getElementById("ticketWrap").scrollIntoView({behavior:"smooth"});
+  showToast("Demo ticket generated");
+}
+</script>
+</body>
+</html>

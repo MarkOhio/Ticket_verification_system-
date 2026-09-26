@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Scanner & Local Server Demo</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#172033}
+button,input,select{font:inherit}
+.app{max-width:1280px;margin:auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.brand{font-weight:900;font-size:20px}
+.header-right{display:flex;gap:10px;align-items:center}
+.pill{padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800}
+.online{background:#e9f8ef;color:#18733b}.offline{background:#fff0f0;color:#b42318}
+.layout{display:grid;grid-template-columns:390px 1fr;gap:18px}
+.card{background:#fff;border:1px solid #e2e7ef;border-radius:16px;box-shadow:0 8px 25px #1720330a}
+.scanner{padding:22px}
+h1{font-size:24px;margin:0 0 7px}.muted{color:#6d788a;font-size:13px}
+.camera{height:290px;background:#111;border-radius:14px;margin:20px 0;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.camera .frame{width:205px;height:205px;border:3px solid #fff;border-radius:18px;position:relative}
+.corner{position:absolute;width:28px;height:28px;border-color:#42a5ff;border-style:solid}
+.c1{top:-3px;left:-3px;border-width:4px 0 0 4px}.c2{top:-3px;right:-3px;border-width:4px 4px 0 0}
+.c3{bottom:-3px;left:-3px;border-width:0 0 4px 4px}.c4{bottom:-3px;right:-3px;border-width:0 4px 4px 0}
+.scan-line{position:absolute;left:8px;right:8px;height:2px;background:#42a5ff;top:50%;animation:scan 2s infinite}
+@keyframes scan{0%,100%{top:18%}50%{top:82%}}
+.camera-label{position:absolute;bottom:15px;color:#fff;font-size:12px;background:#0009;padding:7px 10px;border-radius:8px}
+.btn{width:100%;padding:13px;border:0;border-radius:10px;font-weight:800;cursor:pointer}
+.primary{background:#172033;color:#fff}.light{background:#eef2f7;color:#172033}
+.result{display:none;margin-top:14px;padding:16px;border-radius:12px}
+.result.valid{background:#eaf8ef;color:#176b38}.result.used{background:#fff2e8;color:#a34b00}.result.invalid{background:#fff0f0;color:#b42318}.result.wrong{background:#fff7d9;color:#7a5a00}
+.result strong{display:block;font-size:18px;margin-bottom:5px}
+.manual{margin-top:18px;border-top:1px solid #e5e9ef;padding-top:18px}
+.manual-row{display:flex;gap:8px;margin-top:8px}.manual input{flex:1;padding:12px;border:1px solid #d8dee8;border-radius:9px}
+.server{padding:22px;min-width:0}
+.server-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;margin-bottom:18px}
+.server-actions{display:flex;gap:8px;flex-wrap:wrap}.server-actions button{border:0;padding:10px 12px;border-radius:9px;font-weight:700;cursor:pointer;background:#eef2f7}
+.sync{display:flex;align-items:center;gap:9px;font-size:12px;color:#667285;margin-bottom:15px}
+.dot{width:9px;height:9px;border-radius:50%;background:#20a45a}
+.table-wrap{overflow:auto;border:1px solid #e3e8ef;border-radius:12px}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{text-align:left;padding:13px 12px;border-bottom:1px solid #edf0f4;font-size:12px}
+th{background:#f8f9fb;color:#667285;font-size:11px;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+.status{font-weight:800}.checked{color:#b45309}.unused{color:#188044}
+.event-tag{background:#eef4ff;padding:5px 8px;border-radius:7px;font-weight:700}
+.toast{position:fixed;right:18px;bottom:18px;max-width:340px;background:#172033;color:#fff;padding:14px 16px;border-radius:11px;box-shadow:0 10px 30px #0003;display:none}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{padding:14px;background:#f8f9fb;border-radius:11px}.stat small{color:#6d788a}.stat strong{display:block;font-size:22px;margin-top:4px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+@media(max-width:550px){.stats{grid-template-columns:1fr 1fr}.server-head{display:block}.server-actions{margin-top:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand">EventPass • Check-in System</div>
+  <div class="header-right">
+    <span id="networkPill" class="pill online">● ONLINE</span>
+    <button class="pill" onclick="toggleNetwork()">Simulate Network</button>
+  </div>
+</header>
+
+<div class="layout">
+<section class="card scanner">
+  <h1>Scan Ticket</h1>
+  <div class="muted">Scanner device • Gate 1</div>
+
+  <div class="camera">
+    <div class="frame">
+      <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+      <div class="scan-line"></div>
+    </div>
+    <div class="camera-label">Camera preview • Simulated scanner</div>
+  </div>
+
+  <button class="btn primary" onclick="simulateScan()">Scan QR Code</button>
+
+  <div id="result" class="result">
+    <strong id="resultTitle"></strong>
+    <span id="resultText"></span>
+  </div>
+
+  <div class="manual">
+    <div><strong>Can't scan?</strong> Search the local attendee list.</div>
+    <div class="manual-row">
+      <input id="search" placeholder="Name or ticket code">
+      <button class="btn light" style="width:auto" onclick="searchAttendee()">Search</button>
+    </div>
+  </div>
+</section>
+
+<section class="card server">
+  <div class="server-head">
+    <div>
+      <h1>Local Event Server</h1>
+      <div class="muted">Single source of truth for event-day check-in</div>
+    </div>
+    <div class="server-actions">
+      <button onclick="downloadCSV()">Download CSV</button>
+      <button onclick="syncData()">Check for New Data</button>
+    </div>
+  </div>
+
+  <div class="sync"><span class="dot" id="syncDot"></span><span id="syncText">Local data synced • Last checked just now</span></div>
+
+  <div class="stats">
+    <div class="stat"><small>Total tickets</small><strong id="total">6</strong></div>
+    <div class="stat"><small>Checked in</small><strong id="used">1</strong></div>
+    <div class="stat"><small>Remaining</small><strong id="remaining">5</strong></div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Ticket</th><th>Attendee</th><th>Email</th><th>Event</th><th>Purchased</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="ticketRows"></tbody>
+  </table>
+  </div>
+</section>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let online=true;
+let tickets=[
+ {code:"CON-58291437",name:"John Doe",email:"john@example.com",event:"Joel Bellion Concert",time:"12:04 PM",status:"unused"},
+ {code:"CON-72938164",name:"Mary James",email:"mary@example.com",event:"Joel Bellion Concert",time:"12:18 PM",status:"used"},
+ {code:"CON-48291375",name:"David Okafor",email:"david@example.com",event:"Joel Bellion Concert",time:"12:31 PM",status:"unused"},
+ {code:"CON-91827463",name:"Sarah Bello",email:"sarah@example.com",event:"Joel Bellion Concert",time:"12:46 PM",status:"unused"},
+ {code:"CON-36482917",name:"Michael Obi",email:"michael@example.com",event:"Joel Bellion Concert",time:"1:02 PM",status:"unused"},
+ {code:"WED-67281934",name:"Grace Williams",email:"grace@example.com",event:"Wedding Ceremony",time:"1:12 PM",status:"unused"}
+];
+
+function render(){
+ const tbody=document.getElementById("ticketRows");
+ tbody.innerHTML=tickets.map((t,i)=>`
+ <tr id="row-${i}">
+   <td><strong>${t.code}</strong></td>
+   <td>${t.name}</td>
+   <td>${t.email}</td>
+   <td><span class="event-tag">${t.event}</span></td>
+   <td>${t.time}</td>
+   <td class="status ${t.status==='used'?'checked':'unused'}">${t.status==='used'?'USED':'UNUSED'}</td>
+ </tr>`).join("");
+ const used=tickets.filter(t=>t.status==="used").length;
+ document.getElementById("total").textContent=tickets.length;
+ document.getElementById("used").textContent=used;
+ document.getElementById("remaining").textContent=tickets.length-used;
+}
+render();
+
+function toast(message){
+ const t=document.getElementById("toast");t.textContent=message;t.style.display="block";
+ setTimeout(()=>t.style.display="none",2800);
+}
+
+function showResult(type,title,text){
+ const r=document.getElementById("result");
+ r.className="result "+type;r.style.display="block";
+ document.getElementById("resultTitle").textContent=title;
+ document.getElementById("resultText").textContent=text;
+}
+
+function simulateScan(){
+ if(!online){
+   toast("Network connection lost. Stay connected to the event Wi-Fi.");
+   showResult("invalid","OFFLINE","Local event server is unavailable. Connect to the event Wi-Fi and try again.");
+   return;
+ }
+ // Rotate through different demo outcomes.
+ const sequence=["CON-58291437","CON-72938164","WED-67281934","FAKE-12345678"];
+ const code=sequence[Math.floor(Math.random()*sequence.length)];
+ processCode(code);
+}
+
+function processCode(code){
+ const t=tickets.find(x=>x.code===code);
+ if(!t){
+   showResult("invalid","INVALID TICKET","This ticket was not found in the local event database.");
+   toast("Invalid ticket");
+   return;
+ }
+ if(t.event!=="Joel Bellion Concert"){
+   showResult("wrong","WRONG EVENT","This ticket belongs to "+t.event+".");
+   toast("Wrong event");
+   return;
+ }
+ if(t.status==="used"){
+   showResult("used","TICKET ALREADY USED","This ticket has already been checked in.");
+   toast("Ticket has already been used");
+   return;
+ }
+ t.status="used";
+ render();
+ showResult("valid","VALID TICKET","Check-in successful • "+t.name+" • "+t.code);
+ toast("Check-in successful");
+}
+
+function searchAttendee(){
+ const q=document.getElementById("search").value.trim().toLowerCase();
+ if(!q){toast("Enter a name or ticket code");return}
+ const t=tickets.find(x=>x.name.toLowerCase().includes(q)||x.code.toLowerCase().includes(q));
+ if(!t){showResult("invalid","NOT FOUND","No matching attendee or ticket was found.");return}
+ if(t.event!=="Joel Bellion Concert"){showResult("wrong","WRONG EVENT","This ticket belongs to "+t.event+".");return}
+ if(t.status==="used"){showResult("used","TICKET ALREADY USED","This ticket has already been checked in.");return}
+ t.status="used";render();
+ showResult("valid","VALID TICKET","Manual verification successful • "+t.name);
+ toast("Manual check-in successful");
+}
+
+function toggleNetwork(){
+ online=!online;
+ const pill=document.getElementById("networkPill");
+ pill.textContent=online?"● ONLINE":"● OFFLINE";
+ pill.className="pill "+(online?"online":"offline");
+ document.getElementById("syncText").textContent=online?"Local data synced • Connection restored":"Network offline • Local event mode";
+ document.getElementById("syncDot").style.background=online?"#20a45a":"#d92d20";
+ toast(online?"Network connection restored":"Network went down — stay connected to the event Wi-Fi");
+}
+
+function syncData(){
+ if(!online){toast("Cannot check cloud data while offline");return}
+ document.getElementById("syncText").textContent="Checking for new ticket data...";
+ setTimeout(()=>{document.getElementById("syncText").textContent="No new tickets • Last checked just now";toast("Data check complete");},1200);
+}
+
+function downloadCSV(){
+ let csv="Ticket,Attendee,Email,Event,Purchased,Status\n";
+ tickets.forEach(t=>csv+=`"${t.code}","${t.name}","${t.email}","${t.event}","${t.time}","${t.status}"\n`);
+ const blob=new Blob([csv],{type:"text/csv"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="event-tickets-offline.csv";a.click();
+ URL.revokeObjectURL(a.href);toast("Ticket data downloaded as CSV");
+}
+</script>
+</body>
+</html>
